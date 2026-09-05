@@ -9,11 +9,14 @@ const tenderRoutes = require("./routes/tenders");
 
 const app = express();
 
+const milestoneRoutes = require("./routes/milestones");
+
 app.use(cors());
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tenders", tenderRoutes);
+app.use("/api/milestones", milestoneRoutes);
 
 app.get("/", (req, res) => {
   res.send("InfraFlow Backend is running");

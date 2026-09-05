@@ -1,110 +1,176 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardLayout from "../components/DashboardLayout";
 
-function InspectorAudits() {
-  const [selectedAudit, setSelectedAudit] = useState(null);
-  const [evidenceSubmitted, setEvidenceSubmitted] = useState(false);
+const API = "http://localhost:5000/api";
 
-  const audits = [
-    {
-      id: "INS-204",
-      milestone: "Structural frame — Level 04",
-      project: "Eastline Transit Hub",
-      location: "Kolkata · Zone C",
-      deadline: "1 day 8 hours",
-    },
-    {
-      id: "INS-205",
-      milestone: "Foundation compaction",
-      project: "North Basin Waterworks",
-      location: "Kolkata · Zone A",
-      deadline: "1 day 21 hours",
-    },
-  ];
+function InspectorAudits() {
+  const [inspections, setInspections] = useState([]);
+  const [selectedInspection, setSelectedInspection] = useState(null);
+
+  const [report, setReport] = useState("");
+  const [evidence, setEvidence] = useState("");
+  const [message, setMessage] = useState("");
+
+  const user = JSON.parse(localStorage.getItem("infraflowUser") || "{}");
+
+  const loadInspections = async () => {
+    try {
+      const response = await fetch(`${API}/milestones/inspections/${user.id}`);
+
+      const data = await response.json();
+
+      setInspections(data);
+    } catch (error) {
+      console.error(error);
+      setMessage("Failed to load inspections.");
+    }
+  };
+
+  useEffect(() => {
+    loadInspections();
+  }, []);
+
+  const submitInspection = async () => {
+    if (!selectedInspection) return;
+
+    try {
+      const response = await fetch(
+        `${API}/milestones/${selectedInspection.milestone_id}/inspect`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            inspectorId: user.id,
+            report,
+            evidence,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Inspection failed");
+      }
+
+      setMessage(
+        "Inspection approved. Milestone is now waiting for GC verification.",
+      );
+
+      setSelectedInspection(null);
+      setReport("");
+      setEvidence("");
+
+      loadInspections();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
 
   return (
     <DashboardLayout title="Assigned Inspections">
       <section className="dashboard-card tender-directory">
         <p className="section-label">AUTO-ASSIGNED AUDITS</p>
+
         <h2>Inspection workload queue</h2>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Inspection ID</th>
-              <th>Milestone</th>
-              <th>Project</th>
-              <th>Location</th>
-              <th>Time remaining</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {audits.map((audit) => (
-              <tr key={audit.id}>
-                <td>{audit.id}</td>
-                <td>{audit.milestone}</td>
-                <td>{audit.project}</td>
-                <td>{audit.location}</td>
-                <td>{audit.deadline}</td>
-                <td>
-                  <button
-                    className="table-button"
-                    onClick={() => {
-                      setSelectedAudit(audit);
-                      setEvidenceSubmitted(false);
-                    }}
-                  >
-                    Open
-                  </button>
-                </td>
+        {inspections.length === 0 ? (
+          <p>No inspections assigned.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Milestone</th>
+                <th>Project</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {inspections.map((inspection) => (
+                <tr key={inspection.id}>
+                  <td>{inspection.milestone_title}</td>
+
+                  <td>{inspection.project_name}</td>
+
+                  <td>₹{Number(inspection.amount).toLocaleString("en-IN")}</td>
+
+                  <td>{inspection.status}</td>
+
+                  <td>
+                    {inspection.status === "PENDING" && (
+                      <button
+                        className="table-button"
+                        onClick={() => {
+                          setSelectedInspection(inspection);
+                          setMessage("");
+                        }}
+                      >
+                        Open
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
-      {selectedAudit && (
+      {selectedInspection && (
         <section className="dashboard-card inspection-form">
           <p className="section-label">INSPECTION EVIDENCE</p>
-          <h2>{selectedAudit.milestone}</h2>
 
-          <p>
-            {selectedAudit.project} · {selectedAudit.location}
-          </p>
+          <h2>{selectedInspection.milestone_title}</h2>
+
+          <p>{selectedInspection.project_name}</p>
 
           <label>
             Inspection result
             <select>
               <option>Compliant — ready for contractor review</option>
+
               <option>Requires correction</option>
-              <option>Unsafe condition found</option>
             </select>
           </label>
 
           <label>
             Inspection notes
-            <textarea placeholder="Write your inspection findings here..." />
+            <textarea
+              placeholder="Write your inspection findings here..."
+              value={report}
+              onChange={(e) => setReport(e.target.value)}
+            />
           </label>
 
-          <button className="upload-box">
-            <strong>Upload photographs and report</strong>
-            <span>Frontend demo: no real files are uploaded.</span>
-          </button>
+          <label>
+            Evidence
+            <input
+              type="text"
+              placeholder="inspection_photos.zip"
+              value={evidence}
+              onChange={(e) => setEvidence(e.target.value)}
+            />
+          </label>
 
           <button
-            className="primary-button"
-            onClick={() => setEvidenceSubmitted(true)}
+            className="upload-box"
+            onClick={() => setEvidence("inspection_photos.zip")}
           >
-            Submit inspection evidence
+            <strong>Upload photographs and report</strong>
+
+            <span>Click to simulate selecting inspection evidence.</span>
           </button>
 
-          {evidenceSubmitted && (
-            <p className="success-message">
-              Inspection evidence submitted for contractor verification.
-            </p>
-          )}
+          <button className="primary-button" onClick={submitInspection}>
+            Approve & Submit Inspection
+          </button>
+
+          {message && <p className="success-message">{message}</p>}
         </section>
       )}
     </DashboardLayout>

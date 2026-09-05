@@ -239,10 +239,7 @@ function OwnerTenders() {
           <h2>₹19.9 Cr</h2>
         </article>
 
-        <article className="stat-card">
-          <p>Security pool</p>
-          <h2>₹23.7 L</h2>
-        </article>
+        
       </section>
 
       {/* CREATE TENDER */}

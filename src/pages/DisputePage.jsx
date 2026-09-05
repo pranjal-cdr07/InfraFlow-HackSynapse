@@ -25,11 +25,6 @@ function DisputePage({ role, target }) {
         </label>
 
         <label>
-          Escalate to
-          <input defaultValue={target} />
-        </label>
-
-        <label>
           Describe the issue
           <textarea placeholder="Explain what happened, when it happened, and the resolution you need..." />
         </label>

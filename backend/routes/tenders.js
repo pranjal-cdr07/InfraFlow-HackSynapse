@@ -117,6 +117,35 @@ router.get("/:id/bids", async (req, res) => {
   }
 });
 
+// GET ALL PROJECTS
+router.get("/projects/all", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        projects.*,
+        tenders.title AS tender_title,
+        owner.name AS owner_name,
+        contractor.name AS contractor_name
+      FROM projects
+      JOIN tenders
+        ON tenders.id = projects.tender_id
+      LEFT JOIN users owner
+        ON owner.id = projects.owner_id
+      LEFT JOIN users contractor
+        ON contractor.id = projects.contractor_id
+      ORDER BY projects.created_at DESC
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET PROJECTS ERROR:", error.message);
+
+    res.status(500).json({
+      message: "Failed to fetch projects",
+    });
+  }
+});
+
 // GET SINGLE TENDER
 router.get("/:id", async (req, res) => {
   try {
@@ -262,6 +291,33 @@ router.post("/:id/winner", async (req, res) => {
       [bidId],
     );
 
+    // Create project from awarded tender
+    const projectResult = await pool.query(
+      `INSERT INTO projects
+  (
+    tender_id,
+    owner_id,
+    contractor_id,
+    name,
+    total_amount,
+    status
+  )
+  VALUES ($1, $2, $3, $4, $5, $6)
+  RETURNING *`,
+      [
+        tenderId,
+        tender.owner_id,
+        winningBid.contractor_id,
+        tender.title,
+        winningBid.bid_amount,
+        "ACTIVE",
+      ],
+    );
+
+    const project = projectResult.rows[0];
+
+    console.log("PROJECT CREATED:", project);
+
     // Reject all other bids
 
     // Get all losing bids
@@ -299,6 +355,7 @@ router.post("/:id/winner", async (req, res) => {
       message: "Winner selected successfully",
       winner: winningBid.contractor_id,
       winningBid: bidId,
+      project,
     });
   } catch (error) {
     console.error("SELECT WINNER ERROR:", error.message);

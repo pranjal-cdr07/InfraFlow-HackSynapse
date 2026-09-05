@@ -1,88 +1,152 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardLayout from "../components/DashboardLayout";
 
+const API = "http://localhost:5000/api";
+
 function SubcontractorMilestones() {
-  const [proofUploaded, setProofUploaded] = useState(false);
-  const [milestoneSent, setMilestoneSent] = useState(false);
+  const [milestones, setMilestones] = useState([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [proof, setProof] = useState("");
+  const [message, setMessage] = useState("");
+
+  const user = JSON.parse(localStorage.getItem("infraflowUser") || "{}");
+
+  const loadMilestones = async () => {
+    try {
+      const response = await fetch(`${API}/milestones`);
+      const data = await response.json();
+
+      const mine = data.filter(
+        (milestone) => Number(milestone.subcontractor_id) === Number(user.id),
+      );
+
+      setMilestones(mine);
+    } catch (error) {
+      console.error(error);
+      setMessage("Failed to load milestones.");
+    }
+  };
+
+  useEffect(() => {
+    loadMilestones();
+  }, []);
+
+  const submitProof = async () => {
+    if (!selectedId || !proof) {
+      setMessage("Select a milestone and add proof first.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API}/milestones/${selectedId}/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          proof,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Submission failed");
+      }
+
+      setMessage(
+        `Milestone submitted. Inspector ${data.inspector.name} has been assigned.`,
+      );
+
+      setProof("");
+      setSelectedId("");
+
+      loadMilestones();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
 
   return (
     <DashboardLayout title="Milestones & Work Proof">
       <section className="dashboard-card">
         <p className="section-label">WORK COMPLETION</p>
-        <h2>Milestone completion signal</h2>
+        <h2>Submit milestone for inspection</h2>
 
         <label>
           Choose active milestone
-          <select>
-            <option>Structural frame — Level 04</option>
-            <option>Foundation and groundworks</option>
-            <option>Envelope and MEP</option>
+          <select
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+          >
+            <option value="">Select milestone</option>
+
+            {milestones
+              .filter((milestone) => milestone.status === "PENDING")
+              .map((milestone) => (
+                <option key={milestone.id} value={milestone.id}>
+                  {milestone.title}
+                </option>
+              ))}
           </select>
+        </label>
+
+        <label>
+          Proof / photo reference
+          <input
+            type="text"
+            placeholder="foundation_block_a_photo.jpg"
+            value={proof}
+            onChange={(e) => setProof(e.target.value)}
+          />
         </label>
 
         <button
           className="upload-box"
-          onClick={() => setProofUploaded(true)}
+          onClick={() => setProof("foundation_block_a_photo.jpg")}
         >
           <strong>Upload photo proofs</strong>
-          <span>Click to simulate uploading site photographs.</span>
+          <span>Click to simulate selecting site photographs.</span>
         </button>
 
-        {proofUploaded && (
-          <p className="success-message">
-            8 photo proofs added to this frontend demo.
-          </p>
-        )}
+        {proof && <p className="success-message">Proof selected: {proof}</p>}
 
-        <button
-          className="primary-button"
-          onClick={() => setMilestoneSent(true)}
-        >
+        <button className="primary-button" onClick={submitProof}>
           Signal milestone completed
         </button>
 
-        {milestoneSent && (
-          <p className="success-message">
-            Completion signal sent. An inspector will be assigned next.
-          </p>
-        )}
+        {message && <p className="success-message">{message}</p>}
       </section>
 
       <section className="dashboard-card">
         <p className="section-label">VERIFICATION PIPELINE</p>
-        <h2>Inspection and payment status</h2>
 
-        <div className="pipeline">
-          <article className={milestoneSent ? "pipeline-step complete" : "pipeline-step"}>
-            <span>1</span>
-            <strong>Signal sent</strong>
-            <p>{milestoneSent ? "Complete" : "Ready"}</p>
-          </article>
+        <h2>Your milestones</h2>
 
-          <article className={milestoneSent ? "pipeline-step active" : "pipeline-step"}>
-            <span>2</span>
-            <strong>Inspector assigned</strong>
-            <p>2-day window</p>
-          </article>
+        {milestones.length === 0 ? (
+          <p>No milestones assigned yet.</p>
+        ) : (
+          milestones.map((milestone) => (
+            <div className="activity-item" key={milestone.id}>
+              <span
+                className={`activity-dot ${
+                  milestone.status === "PAID" ? "success" : "pending"
+                }`}
+              />
 
-          <article className="pipeline-step">
-            <span>3</span>
-            <strong>Work inspected</strong>
-            <p>Pending</p>
-          </article>
+              <div>
+                <strong>{milestone.title}</strong>
 
-          <article className="pipeline-step">
-            <span>4</span>
-            <strong>GC verifies</strong>
-            <p>Pending</p>
-          </article>
+                <p>
+                  {milestone.project_name} · ₹
+                  {Number(milestone.amount).toLocaleString("en-IN")}
+                </p>
 
-          <article className="pipeline-step">
-            <span>5</span>
-            <strong>Payment released</strong>
-            <p>Pending</p>
-          </article>
-        </div>
+                <span className="status evaluation">{milestone.status}</span>
+              </div>
+            </div>
+          ))
+        )}
       </section>
     </DashboardLayout>
   );

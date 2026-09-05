@@ -22,10 +22,7 @@ function OwnerMilestones() {
   return (
     <DashboardLayout title="Project Milestones & Activity">
       <section className="stats-grid">
-        <article className="stat-card">
-          <p>Physical completion</p>
-          <h2>68%</h2>
-        </article>
+        
 
         <article className="stat-card">
           <p>Budget disbursed</p>
@@ -38,28 +35,7 @@ function OwnerMilestones() {
         </article>
       </section>
 
-      <section className="dashboard-card">
-        <p className="section-label">PROJECT PROGRESS</p>
-        <h2>Milestone tracker</h2>
-
-        {milestones.map((milestone) => (
-          <div className="milestone-row" key={milestone.name}>
-            <div className="milestone-top">
-              <strong>{milestone.name}</strong>
-              <span>{milestone.status}</span>
-            </div>
-
-            <div className="progress-track">
-              <div
-                className="progress-fill"
-                style={{ width: `${milestone.progress}%` }}
-              ></div>
-            </div>
-
-            <p>{milestone.progress}% complete</p>
-          </div>
-        ))}
-      </section>
+      
 
       <section className="dashboard-card">
         <p className="section-label">AUTOMATED SETTLEMENT ACTIVITY</p>

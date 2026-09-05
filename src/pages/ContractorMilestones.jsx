@@ -1,109 +1,230 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardLayout from "../components/DashboardLayout";
 
+const API = "http://localhost:5000/api";
+
 function ContractorMilestones() {
-  const [verified, setVerified] = useState(false);
-  const [inspectionScheduled, setInspectionScheduled] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [milestones, setMilestones] = useState([]);
+
+  const [projectId, setProjectId] = useState("");
+  const [subcontractorId, setSubcontractorId] = useState("3");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const user = JSON.parse(localStorage.getItem("infraflowUser") || "{}");
+
+  const loadData = async () => {
+    try {
+      const projectsResponse = await fetch(
+        `${API}/milestones/projects/${user.id}`,
+      );
+
+      const projectData = await projectsResponse.json();
+      setProjects(projectData);
+
+      const milestoneResponse = await fetch(`${API}/milestones`);
+
+      const milestoneData = await milestoneResponse.json();
+      setMilestones(milestoneData);
+    } catch (error) {
+      console.error(error);
+      setMessage("Failed to load milestone data.");
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const createMilestone = async () => {
+    if (!projectId || !title || !amount) {
+      setMessage("Please fill project, milestone name and amount.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`${API}/milestones`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId,
+          subcontractorId,
+          title,
+          description,
+          amount: amount.replace(/[₹,]/g, ""),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to create milestone");
+      }
+
+      setMessage("Milestone created successfully.");
+
+      setProjectId("");
+      setTitle("");
+      setDescription("");
+      setAmount("");
+
+      loadData();
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyMilestone = async (milestoneId) => {
+    try {
+      const response = await fetch(`${API}/milestones/${milestoneId}/verify`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Verification failed");
+      }
+
+      setMessage(
+        `Payment released successfully. Transaction: ${data.transaction.tx_hash}`,
+      );
+
+      loadData();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
 
   return (
     <DashboardLayout title="Milestones & Inspections">
+      {/* CREATE MILESTONE */}
       <section className="dashboard-card">
-        <p className="section-label">DUAL VERIFICATION</p>
-        <h2>Inspector report review</h2>
-
-        <div className="inspection-review">
-          <div className="evidence-image">
-            SITE
-            <br />
-            EVIDENCE
-          </div>
-
-          <div>
-            <span className="status evaluation">Awaiting verification</span>
-
-            <h3>Structural frame — Level 04</h3>
-
-            <p>
-              Inspector: Priya N. · 14 photos uploaded · Report ID:
-              INS-204
-            </p>
-
-            <p>
-              The site work appears compliant with the approved structure
-              drawings and inspection checklist.
-            </p>
-
-            <button
-              className="primary-button"
-              onClick={() => setVerified(true)}
-            >
-              Dual-verify inspection
-            </button>
-
-            {verified && (
-              <p className="success-message">
-                Inspection verified. Payment release is shown as complete in
-                this frontend demo.
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="dashboard-card">
-        <p className="section-label">SURPRISE INSPECTION</p>
-        <h2>Schedule an unannounced audit</h2>
+        <p className="section-label">MILESTONE MANAGEMENT</p>
+        <h2>Create new milestone</h2>
 
         <label>
-          Choose milestone
-          <select>
-            <option>Structural frame — Level 04</option>
-            <option>Foundation and groundworks</option>
-            <option>Envelope and MEP</option>
+          Project
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+          >
+            <option value="">Select project</option>
+
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
           </select>
         </label>
 
         <label>
-          Target inspection date
-          <input type="date" />
+          Subcontractor
+          <select
+            value={subcontractorId}
+            onChange={(e) => setSubcontractorId(e.target.value)}
+          >
+            <option value="3">Subcontractor</option>
+          </select>
+        </label>
+
+        <label>
+          Milestone name
+          <input
+            type="text"
+            placeholder="Foundation Complete"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
+
+        <label>
+          Description
+          <textarea
+            placeholder="Describe the work to be completed..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+
+        <label>
+          Payment amount
+          <input
+            type="text"
+            placeholder="₹150000"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
         </label>
 
         <button
           className="primary-button"
-          onClick={() => setInspectionScheduled(true)}
+          onClick={createMilestone}
+          disabled={loading}
         >
-          Schedule surprise inspection
+          {loading ? "Creating..." : "Create Milestone"}
         </button>
 
-        {inspectionScheduled && (
-          <p className="success-message">
-            Surprise inspection scheduled in this frontend demo.
-          </p>
-        )}
+        {message && <p className="success-message">{message}</p>}
       </section>
 
+      {/* MILESTONE STATUS */}
       <section className="dashboard-card">
-        <p className="section-label">AUTOMATED PAYMENT RELEASE</p>
-        <h2>Settlement activity</h2>
+        <p className="section-label">PROJECT MILESTONES</p>
+        <h2>Milestone verification</h2>
 
-        <div className="activity-item">
-          <span className="activity-dot success"></span>
-          <div>
-            <strong>Foundation package settled</strong>
-            <p>
-              ₹1.49 Cr released to the subcontractor. ₹16.6 L moved to the
-              retainage vault.
-            </p>
-          </div>
-        </div>
+        {milestones.length === 0 ? (
+          <p>No milestones created yet.</p>
+        ) : (
+          milestones.map((milestone) => (
+            <div className="activity-item" key={milestone.id}>
+              <span
+                className={`activity-dot ${
+                  milestone.status === "PAID" ? "success" : "pending"
+                }`}
+              />
 
-        <div className="activity-item">
-          <span className="activity-dot pending"></span>
-          <div>
-            <strong>Structural frame payment</strong>
-            <p>Waiting for contractor dual-verification.</p>
-          </div>
-        </div>
+              <div>
+                <strong>{milestone.title}</strong>
+
+                <p>
+                  {milestone.project_name} · ₹
+                  {Number(milestone.amount).toLocaleString("en-IN")}
+                </p>
+
+                <span className="status evaluation">{milestone.status}</span>
+
+                {milestone.status === "INSPECTED" && (
+                  <button
+                    className="primary-button"
+                    onClick={() => verifyMilestone(milestone.id)}
+                  >
+                    Verify & Release Payment
+                  </button>
+                )}
+
+                {milestone.status === "PAID" && (
+                  <p className="success-message">
+                    Payment released through smart contract simulation.
+                  </p>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </section>
     </DashboardLayout>
   );
