@@ -1,7 +1,40 @@
 const express = require("express");
 const pool = require("../db");
-const { refundSecurityDeposit } = require("../services/blockchain");
+const {
+  lockSecurityDeposit,
+  retainWinningSecurityDeposit,
+  refundSecurityDeposit,
+} = require("../services/blockchain");
 const router = express.Router();
+const multer = require("multer");
+const path = require("path");
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+
+  filename: (req, file, cb) => {
+    const extension = path.extname(file.originalname);
+
+    cb(null, `tender-${Date.now()}${extension}`);
+  },
+});
+
+const upload = multer({
+  storage,
+
+  fileFilter: (req, file, cb) => {
+    const allowed = [".pdf", ".doc", ".docx"];
+
+    const extension = path.extname(file.originalname).toLowerCase();
+
+    if (!allowed.includes(extension)) {
+      return cb(new Error("Only PDF, DOC and DOCX files are allowed"));
+    }
+
+    cb(null, true);
+  },
+});
 
 // GET ALL TENDERS
 
@@ -30,7 +63,11 @@ router.get("/", async (req, res) => {
 });
 
 // CREATE TENDER
-router.post("/", async (req, res) => {
+// =========================================================
+// CREATE TENDER
+// =========================================================
+
+router.post("/", upload.single("document"), async (req, res) => {
   const {
     ownerId,
     title,
@@ -47,18 +84,21 @@ router.post("/", async (req, res) => {
       });
     }
 
+    const documentPath = req.file ? `/uploads/${req.file.filename}` : null;
+
     const result = await pool.query(
       `INSERT INTO tenders
-      (
-        owner_id,
-        title,
-        description,
-        tender_amount,
-        security_deposit,
-        deadline
-      )
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *`,
+        (
+          owner_id,
+          title,
+          description,
+          tender_amount,
+          security_deposit,
+          deadline,
+          document_path
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *`,
       [
         ownerId,
         title,
@@ -66,11 +106,13 @@ router.post("/", async (req, res) => {
         tenderAmount,
         securityDeposit,
         deadline || null,
+        documentPath,
       ],
     );
 
     res.status(201).json({
       message: "Tender created successfully",
+
       tender: result.rows[0],
     });
   } catch (error) {
@@ -146,6 +188,34 @@ router.get("/projects/all", async (req, res) => {
   }
 });
 
+// =========================================================
+// GET CAPITAL COMMITTED
+// OPEN + AWARDED TENDERS
+// =========================================================
+
+router.get("/capital-committed/:ownerId", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+        COALESCE(SUM(tender_amount), 0) AS capital_committed
+       FROM tenders
+       WHERE owner_id = $1
+       AND status IN ('OPEN', 'AWARDED')`,
+      [req.params.ownerId],
+    );
+
+    res.json({
+      capitalCommitted: result.rows[0].capital_committed,
+    });
+  } catch (error) {
+    console.error("CAPITAL COMMITTED ERROR:", error.message);
+
+    res.status(500).json({
+      message: "Failed to calculate capital committed",
+    });
+  }
+});
+
 // GET SINGLE TENDER
 router.get("/:id", async (req, res) => {
   try {
@@ -169,22 +239,59 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// =========================================================
 // SUBMIT BID
-router.post("/:id/bids", async (req, res) => {
+// =========================================================
+
+router.post("/:id/bids", upload.array("documents", 10), async (req, res) => {
   const tenderId = req.params.id;
 
-  const { contractorId, bidAmount, securityDeposit, documents } = req.body;
+  const { contractorId, bidAmount, securityDeposit } = req.body;
 
   try {
+    const documentPaths = (req.files || []).map(
+      (file) => `/uploads/${file.filename}`,
+    );
+
+    const documents = JSON.stringify(documentPaths);
+
+    // -----------------------------------------------------
+    // BASIC VALIDATION
+    // -----------------------------------------------------
+
     if (!contractorId || !bidAmount || !securityDeposit) {
       return res.status(400).json({
         message: "Required bid information is missing",
       });
     }
 
-    // Check tender exists
+    // -----------------------------------------------------
+    // CHECK CONTRACTOR
+    // -----------------------------------------------------
+
+    const contractorResult = await pool.query(
+      `SELECT id, name, email, role
+         FROM users
+         WHERE id = $1`,
+      [contractorId],
+    );
+
+    if (contractorResult.rows.length === 0) {
+      return res.status(404).json({
+        message: "Contractor not found",
+      });
+    }
+
+    const contractor = contractorResult.rows[0];
+
+    // -----------------------------------------------------
+    // GET TENDER
+    // -----------------------------------------------------
+
     const tenderResult = await pool.query(
-      "SELECT * FROM tenders WHERE id = $1",
+      `SELECT *
+         FROM tenders
+         WHERE id = $1`,
       [tenderId],
     );
 
@@ -196,37 +303,149 @@ router.post("/:id/bids", async (req, res) => {
 
     const tender = tenderResult.rows[0];
 
-    // Check deadline
+    // -----------------------------------------------------
+    // TENDER MUST BE OPEN
+    // -----------------------------------------------------
+
+    if (tender.status !== "OPEN") {
+      return res.status(400).json({
+        message: "This tender is no longer accepting bids",
+      });
+    }
+
+    // -----------------------------------------------------
+    // OWNER CANNOT BID ON OWN TENDER
+    // -----------------------------------------------------
+
+    if (Number(tender.owner_id) === Number(contractorId)) {
+      return res.status(403).json({
+        message: "Tender owner cannot submit a bid",
+      });
+    }
+
+    // -----------------------------------------------------
+    // CHECK DEADLINE
+    // -----------------------------------------------------
+
     if (tender.deadline && new Date(tender.deadline) < new Date()) {
       return res.status(400).json({
         message: "Tender bidding deadline has passed",
       });
     }
 
-    // Create bid
+    // -----------------------------------------------------
+    // SECURITY DEPOSIT MUST MATCH
+    // -----------------------------------------------------
+
+    const requiredDeposit = Number(tender.security_deposit);
+
+    const submittedDeposit = Number(securityDeposit);
+
+    if (submittedDeposit !== requiredDeposit) {
+      return res.status(400).json({
+        message: `Security deposit must be ₹${requiredDeposit.toLocaleString("en-IN")}`,
+      });
+    }
+
+    // -----------------------------------------------------
+    // BID AMOUNT MUST BE VALID
+    // -----------------------------------------------------
+
+    const bidValue = Number(bidAmount);
+
+    if (!Number.isFinite(bidValue) || bidValue <= 0) {
+      return res.status(400).json({
+        message: "Bid amount must be greater than zero",
+      });
+    }
+
+    // -----------------------------------------------------
+    // PREVENT DUPLICATE BID
+    // -----------------------------------------------------
+
+    const existingBid = await pool.query(
+      `SELECT id
+         FROM bids
+         WHERE tender_id = $1
+         AND contractor_id = $2
+         AND status IN ('PENDING', 'ACCEPTED')`,
+      [tenderId, contractorId],
+    );
+
+    if (existingBid.rows.length > 0) {
+      return res.status(400).json({
+        message: "You have already submitted a bid for this tender",
+      });
+    }
+
+    // -----------------------------------------------------
+    // CREATE BID
+    // -----------------------------------------------------
+
     const result = await pool.query(
       `INSERT INTO bids
-      (
-        tender_id,
-        contractor_id,
-        bid_amount,
-        security_deposit,
-        documents
-      )
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *`,
-      [tenderId, contractorId, bidAmount, securityDeposit, documents || ""],
+        (
+          tender_id,
+          contractor_id,
+          bid_amount,
+          security_deposit,
+          documents,
+          status
+        )
+        VALUES
+        ($1, $2, $3, $4, $5, 'PENDING')
+        RETURNING *`,
+      [tenderId, contractorId, bidValue, submittedDeposit, documents || ""],
     );
+
+    const bid = result.rows[0];
+
+    // -----------------------------------------------------
+    // LOCK SECURITY DEPOSIT
+    // -----------------------------------------------------
+
+    const transaction = await lockSecurityDeposit({
+      pool,
+      bid,
+      contractorId,
+    });
+
+    // -----------------------------------------------------
+    // NOTIFY OWNER
+    // -----------------------------------------------------
+
+    await pool.query(
+      `INSERT INTO notifications
+      (
+        user_id,
+        message,
+        type
+      )
+      VALUES ($1, $2, $3)`,
+      [
+        tender.owner_id,
+        `New bid of ₹${bidValue.toLocaleString("en-IN")} received for "${tender.title}".`,
+        "NEW_BID",
+      ],
+    );
+
+    // -----------------------------------------------------
+    // RESPONSE
+    // -----------------------------------------------------
 
     res.status(201).json({
       message: "Bid submitted successfully",
-      bid: result.rows[0],
+
+      bid,
+
+      transaction,
     });
   } catch (error) {
     console.error("SUBMIT BID ERROR:", error.message);
 
     res.status(500).json({
       message: "Failed to submit bid",
+
       error: error.message,
     });
   }
@@ -248,6 +467,7 @@ router.post("/:id/winner", async (req, res) => {
       });
     }
 
+    // GET TENDER
     const tenderResult = await pool.query(
       "SELECT * FROM tenders WHERE id = $1",
       [tenderId],
@@ -258,9 +478,13 @@ router.post("/:id/winner", async (req, res) => {
         message: "Tender not found",
       });
     }
+
     const tender = tenderResult.rows[0];
+
+    // GET WINNING BID
     const bidResult = await pool.query(
-      `SELECT * FROM bids
+      `SELECT *
+       FROM bids
        WHERE id = $1
        AND tender_id = $2`,
       [bidId, tenderId],
@@ -274,7 +498,27 @@ router.post("/:id/winner", async (req, res) => {
 
     const winningBid = bidResult.rows[0];
 
-    // Update tender
+    // PREVENT DUPLICATE PROJECT
+    const existingProject = await pool.query(
+      `SELECT id
+       FROM projects
+       WHERE tender_id = $1`,
+      [tenderId],
+    );
+
+    if (existingProject.rows.length > 0) {
+      return res.status(400).json({
+        message: "A project has already been created for this tender",
+      });
+    }
+
+    // RETAIN WINNING SECURITY DEPOSIT
+    const winningTransaction = await retainWinningSecurityDeposit({
+      pool,
+      bid: winningBid,
+    });
+
+    // UPDATE TENDER
     await pool.query(
       `UPDATE tenders
        SET winner_id = $1,
@@ -283,7 +527,7 @@ router.post("/:id/winner", async (req, res) => {
       [winningBid.contractor_id, tenderId],
     );
 
-    // Accept selected bid
+    // ACCEPT WINNING BID
     await pool.query(
       `UPDATE bids
        SET status = 'ACCEPTED'
@@ -291,19 +535,19 @@ router.post("/:id/winner", async (req, res) => {
       [bidId],
     );
 
-    // Create project from awarded tender
+    // CREATE PROJECT
     const projectResult = await pool.query(
       `INSERT INTO projects
-  (
-    tender_id,
-    owner_id,
-    contractor_id,
-    name,
-    total_amount,
-    status
-  )
-  VALUES ($1, $2, $3, $4, $5, $6)
-  RETURNING *`,
+       (
+         tender_id,
+         owner_id,
+         contractor_id,
+         name,
+         total_amount,
+         status
+       )
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
       [
         tenderId,
         tender.owner_id,
@@ -318,29 +562,28 @@ router.post("/:id/winner", async (req, res) => {
 
     console.log("PROJECT CREATED:", project);
 
-    // Reject all other bids
-
-    // Get all losing bids
+    // GET LOSING BIDS
     const losingBids = await pool.query(
       `SELECT *
-   FROM bids
-   WHERE tender_id = $1
-   AND id != $2
-   AND status = 'PENDING'`,
+       FROM bids
+       WHERE tender_id = $1
+       AND id != $2
+       AND status = 'PENDING'`,
       [tenderId, bidId],
     );
+
     console.log("LOSING BIDS:", losingBids.rows);
 
-    // Reject losing bids
+    // REJECT LOSING BIDS
     await pool.query(
       `UPDATE bids
-   SET status = 'REJECTED'
-   WHERE tender_id = $1
-   AND id != $2`,
+       SET status = 'REJECTED'
+       WHERE tender_id = $1
+       AND id != $2`,
       [tenderId, bidId],
     );
 
-    // Refund every losing security deposit
+    // REFUND LOSING SECURITY DEPOSITS
     for (const bid of losingBids.rows) {
       await refundSecurityDeposit({
         pool,
@@ -351,10 +594,12 @@ router.post("/:id/winner", async (req, res) => {
 
     console.log("WINNER SELECTED SUCCESSFULLY");
 
+    // SEND ONE RESPONSE ONLY
     res.json({
       message: "Winner selected successfully",
       winner: winningBid.contractor_id,
       winningBid: bidId,
+      winningDepositTransaction: winningTransaction,
       project,
     });
   } catch (error) {

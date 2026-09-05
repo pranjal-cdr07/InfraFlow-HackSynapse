@@ -10,6 +10,10 @@ const tenderRoutes = require("./routes/tenders");
 const app = express();
 
 const milestoneRoutes = require("./routes/milestones");
+const notificationRoutes = require("./routes/notifications");
+const transactionRoutes = require("./routes/transactions");
+const path = require("path");
+const auditRoutes = require("./routes/audits");
 
 app.use(cors());
 app.use(express.json());
@@ -17,6 +21,10 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/tenders", tenderRoutes);
 app.use("/api/milestones", milestoneRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/transactions", transactionRoutes);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/api/audits", auditRoutes);
 
 app.get("/", (req, res) => {
   res.send("InfraFlow Backend is running");

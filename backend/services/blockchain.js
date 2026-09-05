@@ -8,6 +8,49 @@ function generateTxHash() {
 // SECURITY DEPOSIT REFUND
 // =========================================================
 
+// =========================================================
+// SECURITY DEPOSIT LOCK
+// =========================================================
+
+async function lockSecurityDeposit({ pool, bid, contractorId }) {
+  console.log("BLOCKCHAIN SECURITY DEPOSIT LOCK STARTED:", bid.id);
+
+  const txHash = generateTxHash();
+
+  const transaction = await pool.query(
+    `INSERT INTO transactions
+    (
+      type,
+      from_user,
+      to_user,
+      amount,
+      status,
+      tx_hash
+    )
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING *`,
+    [
+      "SECURITY_DEPOSIT",
+      contractorId,
+      null,
+      bid.security_deposit,
+      "CONFIRMED",
+      txHash,
+    ],
+  );
+
+  console.log("SECURITY DEPOSIT TRANSACTION:", transaction.rows[0]);
+
+  await pool.query(
+    `UPDATE bids
+     SET transaction_id = $1
+     WHERE id = $2`,
+    [transaction.rows[0].id, bid.id],
+  );
+
+  return transaction.rows[0];
+}
+
 async function refundSecurityDeposit({ pool, bid, ownerId }) {
   console.log("BLOCKCHAIN REFUND STARTED FOR BID:", bid.id);
 
@@ -175,10 +218,53 @@ async function releaseMilestonePayment({ pool, milestone }) {
 }
 
 // =========================================================
+// RETAIN WINNING SECURITY DEPOSIT
+// =========================================================
+
+async function retainWinningSecurityDeposit({ pool, bid }) {
+  console.log("BLOCKCHAIN WINNING DEPOSIT RETAINED:", bid.id);
+
+  const txHash = generateTxHash();
+
+  const transaction = await pool.query(
+    `INSERT INTO transactions
+      (
+        type,
+        from_user,
+        to_user,
+        amount,
+        status,
+        tx_hash
+      )
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *`,
+    [
+      "SECURITY_DEPOSIT_RETAINED",
+      bid.contractor_id,
+      null,
+      bid.security_deposit,
+      "CONFIRMED",
+      txHash,
+    ],
+  );
+
+  await pool.query(
+    `UPDATE bids
+     SET transaction_id = $1
+     WHERE id = $2`,
+    [transaction.rows[0].id, bid.id],
+  );
+
+  return transaction.rows[0];
+}
+
+// =========================================================
 // EXPORTS
 // =========================================================
 
 module.exports = {
+  lockSecurityDeposit,
+  retainWinningSecurityDeposit,
   refundSecurityDeposit,
   releaseMilestonePayment,
 };

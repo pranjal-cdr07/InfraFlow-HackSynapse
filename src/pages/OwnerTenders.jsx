@@ -78,21 +78,23 @@ function OwnerTenders() {
     try {
       setPosting(true);
 
+      const formData = new FormData();
+
+      formData.append("ownerId", user.id);
+      formData.append("title", project);
+      formData.append("description", "");
+      formData.append("tenderAmount", amount.replace(/[₹,]/g, ""));
+      formData.append("securityDeposit", deposit.replace(/[₹,]/g, ""));
+      formData.append("deadline", deadline);
+
+      if (bidDocument) {
+        formData.append("document", bidDocument);
+      }
+
       const response = await fetch("http://localhost:5000/api/tenders", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ownerId: user.id,
-          title: project,
-          description: "",
-          tenderAmount: amount.replace(/[₹,]/g, ""),
-          securityDeposit: deposit.replace(/[₹,]/g, ""),
-          deadline: deadline,
-        }),
+        body: formData,
       });
-
       const data = await response.json();
 
       if (!response.ok) {
@@ -216,6 +218,14 @@ function OwnerTenders() {
     return `₹${Number(value).toLocaleString("en-IN")}`;
   }
 
+  function getCapitalCommitted() {
+    return tenderList
+      .filter(
+        (tender) => tender.status === "OPEN" || tender.status === "AWARDED",
+      )
+      .reduce((total, tender) => total + Number(tender.tender_amount || 0), 0);
+  }
+
   function formatDate(value) {
     if (!value) return "No deadline";
 
@@ -236,10 +246,8 @@ function OwnerTenders() {
 
         <article className="stat-card">
           <p>Capital committed</p>
-          <h2>₹19.9 Cr</h2>
+          <h2>{formatMoney(getCapitalCommitted())}</h2>
         </article>
-
-        
       </section>
 
       {/* CREATE TENDER */}
@@ -333,6 +341,7 @@ function OwnerTenders() {
                 <th>Applicants</th>
                 <th>Deadline</th>
                 <th>Status</th>
+                <th>Document</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -352,6 +361,21 @@ function OwnerTenders() {
                     <span className={`status ${tender.status.toLowerCase()}`}>
                       {tender.status}
                     </span>
+                  </td>
+
+                  <td>
+                    {tender.document_path ? (
+                      <a
+                        href={`http://localhost:5000${tender.document_path}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="table-button"
+                      >
+                        View Document
+                      </a>
+                    ) : (
+                      "No document"
+                    )}
                   </td>
 
                   <td>
@@ -403,6 +427,7 @@ function OwnerTenders() {
                   <th>Email</th>
                   <th>Bid amount</th>
                   <th>Security deposit</th>
+                  <th>Documents</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -417,6 +442,39 @@ function OwnerTenders() {
                     <td>{formatMoney(bid.bid_amount)}</td>
 
                     <td>{formatMoney(bid.security_deposit)}</td>
+
+                    <td>
+                      {bid.documents ? (
+                        <button
+                          className="table-button"
+                          onClick={() => {
+                            try {
+                              const documents = JSON.parse(bid.documents);
+
+                              if (!documents.length) {
+                                alert("No documents uploaded.");
+                                return;
+                              }
+
+                              documents.forEach((documentPath) => {
+                                window.open(
+                                  `http://localhost:5000${documentPath}`,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                );
+                              });
+                            } catch (error) {
+                              console.error("Document error:", error);
+                              alert("Unable to open bid documents.");
+                            }
+                          }}
+                        >
+                          View Documents
+                        </button>
+                      ) : (
+                        "No documents"
+                      )}
+                    </td>
 
                     <td>
                       <span className={`status ${bid.status.toLowerCase()}`}>

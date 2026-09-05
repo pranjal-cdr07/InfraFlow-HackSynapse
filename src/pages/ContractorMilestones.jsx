@@ -17,7 +17,8 @@ function ContractorMilestones() {
   const [loading, setLoading] = useState(false);
 
   const user = JSON.parse(localStorage.getItem("infraflowUser") || "{}");
-
+  const [auditMessage, setAuditMessage] = useState("");
+  const [auditLoading, setAuditLoading] = useState(false);
   const loadData = async () => {
     try {
       const projectsResponse = await fetch(
@@ -108,6 +109,43 @@ function ContractorMilestones() {
     }
   };
 
+  const initiateSurpriseAudit = async () => {
+    if (projects.length === 0) {
+      setAuditMessage("No active project available for surprise audit.");
+      return;
+    }
+
+    setAuditLoading(true);
+    setAuditMessage("");
+
+    try {
+      const response = await fetch(`${API}/audits/surprise`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contractorId: user.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to initiate surprise audit");
+      }
+
+      setAuditMessage(
+        `Surprise audit initiated successfully. Inspector assigned: ${data.audit.inspector_name}`,
+      );
+    } catch (error) {
+      console.error("Surprise audit error:", error);
+      setAuditMessage(error.message);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
   return (
     <DashboardLayout title="Milestones & Inspections">
       {/* CREATE MILESTONE */}
@@ -179,6 +217,28 @@ function ContractorMilestones() {
         </button>
 
         {message && <p className="success-message">{message}</p>}
+      </section>
+
+      {/* SURPRISE AUDIT */}
+      <section className="dashboard-card">
+        <p className="section-label">QUALITY & COMPLIANCE</p>
+
+        <h2>Surprise audit</h2>
+
+        <p>
+          Request an unplanned inspection of an active project to verify
+          construction quality and compliance.
+        </p>
+
+        <button
+          className="primary-button"
+          onClick={initiateSurpriseAudit}
+          disabled={auditLoading}
+        >
+          {auditLoading ? "Initiating..." : "Initiate Surprise Audit"}
+        </button>
+
+        {auditMessage && <p className="success-message">{auditMessage}</p>}
       </section>
 
       {/* MILESTONE STATUS */}

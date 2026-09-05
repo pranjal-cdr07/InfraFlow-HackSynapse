@@ -146,6 +146,14 @@ button {
   letter-spacing: 1px;
 }
 
+.sidebar-time {
+  margin-top: 6px;
+  margin-bottom: 22px;
+  font-size: 11px;
+  line-height: 1.6;
+  opacity: 0.6;
+}
+
 .sidebar-nav {
   display: flex;
   flex-direction: column;

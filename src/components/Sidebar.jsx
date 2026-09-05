@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 const roleMenus = {
   owner: {
@@ -50,6 +51,16 @@ const roleMenus = {
 function Sidebar() {
   const location = useLocation();
 
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const role = location.pathname.split("/")[1];
   const menu = roleMenus[role];
 
@@ -62,6 +73,24 @@ function Sidebar() {
       <Link className="logo-link" to="/">
         InfraFlow
       </Link>
+
+      <div className="sidebar-time">
+        <div>
+          {currentTime.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })}
+        </div>
+
+        <div>
+          {currentTime.toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })}
+        </div>
+      </div>
 
       <p className="sidebar-label">{menu.title} Portal</p>
 

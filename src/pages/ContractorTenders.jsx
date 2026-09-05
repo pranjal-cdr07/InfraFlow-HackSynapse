@@ -6,7 +6,7 @@ function ContractorTenders() {
   const [selectedTender, setSelectedTender] = useState(null);
 
   const [bidAmount, setBidAmount] = useState("");
-  const [proposalDocument, setProposalDocument] = useState("");
+  const [proposalDocuments, setProposalDocuments] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -59,18 +59,13 @@ function ContractorTenders() {
     setSelectedTender(tender);
     setBidSubmitted(false);
     setBidAmount("");
-    setProposalDocument("");
+    setProposalDocuments([]);
   }
 
   // SUBMIT BID
   async function submitBid() {
     if (!bidAmount.trim()) {
       alert("Please enter your bid amount.");
-      return;
-    }
-
-    if (!proposalDocument.trim()) {
-      alert("Please enter your proposal document name.");
       return;
     }
 
@@ -93,19 +88,21 @@ function ContractorTenders() {
     try {
       setSubmitting(true);
 
+      const formData = new FormData();
+
+      formData.append("contractorId", user.id);
+      formData.append("bidAmount", bidAmount.replace(/[₹,]/g, ""));
+      formData.append("securityDeposit", selectedTender.security_deposit);
+
+      proposalDocuments.forEach((file) => {
+        formData.append("documents", file);
+      });
+
       const response = await fetch(
         `http://localhost:5000/api/tenders/${selectedTender.id}/bids`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contractorId: user.id,
-            bidAmount: bidAmount.replace(/[₹,]/g, ""),
-            securityDeposit: selectedTender.security_deposit,
-            documents: proposalDocument,
-          }),
+          body: formData,
         },
       );
 
@@ -119,7 +116,7 @@ function ContractorTenders() {
       setBidSubmitted(true);
 
       setBidAmount("");
-      setProposalDocument("");
+      setProposalDocuments("");
 
       alert("Bid submitted successfully.");
     } catch (error) {
@@ -154,6 +151,7 @@ function ContractorTenders() {
                 <th>Contract value</th>
                 <th>Security deposit</th>
                 <th>Deadline</th>
+                <th>Document</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -168,6 +166,21 @@ function ContractorTenders() {
                   <td>{formatMoney(tender.security_deposit)}</td>
 
                   <td>{formatDate(tender.deadline)}</td>
+
+                  <td>
+                    {tender.document_path ? (
+                      <a
+                        href={`http://localhost:5000${tender.document_path}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="table-button"
+                      >
+                        View Document
+                      </a>
+                    ) : (
+                      "No document"
+                    )}
+                  </td>
 
                   <td>
                     <button
@@ -200,13 +213,27 @@ function ContractorTenders() {
             />
           </label>
 
-          <label>
-            Proposal document name
+          <label className="document-upload">
+            Required bid documents
             <input
-              value={proposalDocument}
-              onChange={(event) => setProposalDocument(event.target.value)}
-              placeholder="Example: Atlas Civil Proposal.pdf"
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx"
+              onChange={(event) =>
+                setProposalDocuments(Array.from(event.target.files || []))
+              }
             />
+            <span>
+              Upload GST, PAN, registration, technical proposal, previous work
+              certificates, or other required documents.
+            </span>
+            {proposalDocuments.length > 0 && (
+              <div>
+                {proposalDocuments.map((file, index) => (
+                  <p key={index}>{file.name}</p>
+                ))}
+              </div>
+            )}
           </label>
 
           <div className="security-box">
