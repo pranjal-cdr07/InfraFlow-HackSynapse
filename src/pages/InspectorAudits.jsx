@@ -25,7 +25,7 @@ function InspectorAudits() {
   return (
     <DashboardLayout title="Assigned Inspections">
       <section className="dashboard-card tender-directory">
-        <p className="section-label">STEP 10 · AUTO-ASSIGNED AUDITS</p>
+        <p className="section-label">AUTO-ASSIGNED AUDITS</p>
         <h2>Inspection workload queue</h2>
 
         <table>
@@ -67,7 +67,7 @@ function InspectorAudits() {
 
       {selectedAudit && (
         <section className="dashboard-card inspection-form">
-          <p className="section-label">STEP 11 · INSPECTION EVIDENCE</p>
+          <p className="section-label">INSPECTION EVIDENCE</p>
           <h2>{selectedAudit.milestone}</h2>
 
           <p>

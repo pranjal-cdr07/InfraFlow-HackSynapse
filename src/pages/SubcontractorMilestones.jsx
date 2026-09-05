@@ -8,7 +8,7 @@ function SubcontractorMilestones() {
   return (
     <DashboardLayout title="Milestones & Work Proof">
       <section className="dashboard-card">
-        <p className="section-label">STEP 09 · WORK COMPLETION</p>
+        <p className="section-label">WORK COMPLETION</p>
         <h2>Milestone completion signal</h2>
 
         <label>

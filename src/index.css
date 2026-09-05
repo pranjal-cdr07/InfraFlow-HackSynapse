@@ -246,6 +246,95 @@ button {
   font-weight: bold;
 }
 
+.document-upload {
+  padding: 14px;
+  border: 1px dashed #aeb8c6;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.document-upload input {
+  margin: 10px 0 8px;
+  border: 0;
+  padding: 0;
+}
+
+.document-upload span {
+  display: block;
+  color: #69717d;
+  font-size: 12px;
+}
+
+.login-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  background: #f4f6f9;
+}
+
+.login-card {
+  width: min(100%, 430px);
+  padding: 34px;
+  border: 1px solid #e0e4ea;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 12px 30px rgba(26, 54, 93, 0.08);
+}
+
+.login-logo {
+  display: block;
+  margin-bottom: 36px;
+  color: #315f9a;
+  font-size: 23px;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.login-card h1 {
+  margin: 10px 0;
+  font-size: 27px;
+}
+
+.login-copy {
+  margin-bottom: 24px;
+  color: #69717d;
+  line-height: 1.5;
+}
+
+.login-card label {
+  display: block;
+  margin: 16px 0;
+  color: #4c5869;
+  font-size: 14px;
+}
+
+.login-card input {
+  width: 100%;
+  margin-top: 7px;
+  padding: 12px;
+  border: 1px solid #d7dce5;
+  border-radius: 6px;
+}
+
+.login-button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.login-error {
+  color: #b5472c;
+  font-size: 13px;
+}
+
+.login-back {
+  display: inline-block;
+  margin-top: 24px;
+  color: #315f9a;
+  font-size: 13px;
+  text-decoration: none;
+}
+
 @media (max-width: 800px) {
   .sidebar {
     display: none;
@@ -699,5 +788,167 @@ td {
 @media (max-width: 600px) {
   .surprise-task {
     flex-direction: column;
+  }
+}
+.home-page {
+  min-height: 100vh;
+  padding: 28px 7%;
+  background: #f7f8fa;
+}
+
+.home-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.home-header h1 {
+  margin: 0;
+  color: #315f9a;
+}
+
+.home-header span {
+  padding: 8px 12px;
+  border: 1px solid #dce1e8;
+  border-radius: 6px;
+  background: white;
+  color: #69717d;
+  font-size: 13px;
+}
+
+.home-hero {
+  max-width: 680px;
+  margin: 90px auto 50px;
+  text-align: center;
+}
+
+.home-hero h2 {
+  margin: 14px 0;
+  font-size: 54px;
+  letter-spacing: -2px;
+}
+
+.home-hero > p:last-child {
+  color: #69717d;
+  line-height: 1.6;
+}
+
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.portal-card {
+  display: flex;
+  min-height: 210px;
+  flex-direction: column;
+  padding: 20px;
+  border: 1px solid #e0e4ea;
+  border-radius: 10px;
+  background: white;
+  color: #20242c;
+  text-decoration: none;
+}
+
+.portal-card:hover {
+  border-color: #9db6d2;
+  box-shadow: 0 6px 18px rgba(26, 54, 93, 0.08);
+}
+
+.portal-card h3 {
+  margin: 10px 0;
+}
+
+.portal-card > p:not(.section-label) {
+  color: #69717d;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.portal-card strong {
+  margin-top: auto;
+  color: #315f9a;
+  font-size: 13px;
+}
+
+@media (max-width: 1000px) {
+  .portal-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .home-page {
+    padding: 20px;
+  }
+
+  .home-hero {
+    margin-top: 60px;
+  }
+
+  .home-hero h2 {
+    font-size: 40px;
+  }
+
+  .portal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 800px) {
+  .dashboard-layout {
+    display: block;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    width: 100%;
+    min-height: auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 1px solid #e0e4ea;
+  }
+
+  .sidebar-label {
+    display: none;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex: 1;
+    flex-direction: row;
+    gap: 6px;
+    margin: 0;
+    overflow-x: auto;
+  }
+
+  .sidebar-nav a {
+    flex-shrink: 0;
+    padding: 8px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .back-home {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 8px 0;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .dashboard-content {
+    padding: 20px 16px;
+  }
+
+  .dashboard-header {
+    margin-bottom: 20px;
   }
 }

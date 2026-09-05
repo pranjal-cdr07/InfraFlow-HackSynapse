@@ -8,7 +8,7 @@ function ContractorMilestones() {
   return (
     <DashboardLayout title="Milestones & Inspections">
       <section className="dashboard-card">
-        <p className="section-label">STEP 12 · DUAL VERIFICATION</p>
+        <p className="section-label">DUAL VERIFICATION</p>
         <h2>Inspector report review</h2>
 
         <div className="inspection-review">

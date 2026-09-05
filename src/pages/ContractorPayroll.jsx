@@ -25,7 +25,7 @@ function ContractorPayroll() {
   return (
     <DashboardLayout title="Payroll & Trade Setup">
       <section className="dashboard-card">
-        <p className="section-label">STEP 08 · PAYMENT ROUTING</p>
+        <p className="section-label">PAYMENT ROUTING</p>
         <h2>Subcontractor payroll rule engine</h2>
 
         <div className="payment-flow">

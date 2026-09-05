@@ -9,6 +9,7 @@ function OwnerTenders() {
   const [project, setProject] = useState("");
   const [amount, setAmount] = useState("");
   const [deposit, setDeposit] = useState("");
+  const [bidDocument, setBidDocument] = useState(null);
 
   function postTender() {
     if (project === "" || amount === "" || deposit === "") {
@@ -24,6 +25,7 @@ function OwnerTenders() {
       applicants: 0,
       deadline: "14 days remaining",
       status: "Open",
+      document: bidDocument?.name || "No bid document attached",
     };
 
     setTenderList([newTender, ...tenderList]);
@@ -31,6 +33,7 @@ function OwnerTenders() {
     setProject("");
     setAmount("");
     setDeposit("");
+    setBidDocument(null);
 
     alert("Tender posted successfully.");
   }
@@ -59,7 +62,7 @@ function OwnerTenders() {
       </section>
 
       <section className="dashboard-card">
-        <p className="section-label">STEP 01 · TENDER PUBLICATION</p>
+        <p className="section-label">TENDER PUBLICATION</p>
         <h2>Create and post tender</h2>
 
         <label>
@@ -87,6 +90,20 @@ function OwnerTenders() {
             onChange={(event) => setDeposit(event.target.value)}
             placeholder="Example: ₹4,15,000"
           />
+        </label>
+
+        <label className="document-upload">
+          Bid document
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx"
+            onChange={(event) => setBidDocument(event.target.files?.[0] || null)}
+          />
+          <span>
+            {bidDocument
+              ? `Selected: ${bidDocument.name}`
+              : "Upload tender specifications, BOQ, or bid instructions (PDF/DOC)."}
+          </span>
         </label>
 
         <button className="primary-button" onClick={postTender}>
@@ -142,6 +159,7 @@ function OwnerTenders() {
           <h2>{selectedTender.project}</h2>
           <p>Contract value: {selectedTender.amount}</p>
           <p>Bid security deposit: {selectedTender.deposit}</p>
+          <p>Bid document: {selectedTender.document || "Document attached"}</p>
           <p>Applicants: {selectedTender.applicants}</p>
 
           <button
