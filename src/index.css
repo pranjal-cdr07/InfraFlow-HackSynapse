@@ -1,0 +1,121 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f6f7f9;
+  color: #20242c;
+  font-family: Arial, sans-serif;
+}
+
+button {
+  cursor: pointer;
+}
+
+.landing-page {
+  max-width: 1200px;
+  margin: auto;
+  padding: 32px;
+}
+
+.landing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.landing-header h1 {
+  margin: 0;
+  color: #315f9a;
+}
+
+.landing-header button {
+  border: 1px solid #d9dee7;
+  background: white;
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+.hero {
+  max-width: 650px;
+  margin: 90px auto 50px;
+  text-align: center;
+}
+
+.eyebrow {
+  color: #5d5a9f;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.hero h2 {
+  font-size: 52px;
+  margin: 16px 0;
+}
+
+.hero p {
+  color: #687182;
+  line-height: 1.6;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+.role-card {
+  display: flex;
+  min-height: 190px;
+  flex-direction: column;
+  padding: 20px;
+  border: 1px solid #e0e4ea;
+  border-radius: 10px;
+  background: white;
+}
+
+.role-card h3 {
+  margin-top: 0;
+}
+
+.role-card p {
+  color: #687182;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.role-card button {
+  margin-top: auto;
+  border: 0;
+  background: transparent;
+  color: #315f9a;
+  font-weight: bold;
+  text-align: left;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .role-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .landing-page {
+    padding: 20px;
+  }
+
+  .hero {
+    margin-top: 60px;
+  }
+
+  .hero h2 {
+    font-size: 38px;
+  }
+
+  .role-grid {
+    grid-template-columns: 1fr;
+  }
+}
