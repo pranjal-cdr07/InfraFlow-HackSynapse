@@ -14,6 +14,7 @@ const notificationRoutes = require("./routes/notifications");
 const transactionRoutes = require("./routes/transactions");
 const path = require("path");
 const auditRoutes = require("./routes/audits");
+const disputeRoutes = require("./routes/disputes");
 
 app.use(cors());
 app.use(express.json());
@@ -25,6 +26,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/audits", auditRoutes);
+app.use("/api/disputes", disputeRoutes);
 
 app.get("/", (req, res) => {
   res.send("InfraFlow Backend is running");
